@@ -1,0 +1,32 @@
+server:
+  port: 8083
+  servlet:
+    context-path: /review
+
+spring:
+  application:
+    name: Review-service
+
+  security:
+    user:
+      name: hoangluc
+      password: 1234567
+
+  datasource:
+    url: jdbc:mysql://localhost:3309/review_service?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+jwt:
+  signerKey: "_G8QMpPL2NdilojwwGVfLjMfUvkn_6fBMUZ30WYQAtA1234567890abcdefghijklm"
+
+app:
+  rental-service:
+    # Docker: http://rental-service:8082/rental/bookings
+    url: http://localhost:8082/rental/bookings

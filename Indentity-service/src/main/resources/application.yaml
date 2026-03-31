@@ -1,0 +1,46 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /identity
+  forward-headers-strategy: framework
+
+spring:
+  config:
+    import: optional:file:.env[.properties]
+  application:
+    name: Indentity-service
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            redirect-uri: "https://api.codespheree.id.vn/identity/login/oauth2/code/google"
+            scope:
+              - email
+              - profile
+
+    user:
+      name: hoangluc
+      password: 1234567
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/identity_service?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+  servlet:
+    multipart:
+      max-file-size: 3MB
+      max-request-size: 3MB
+
+jwt:
+  signerKey: "_G8QMpPL2NdilojwwGVfLjMfUvkn_6fBMUZ30WYQAtA1234567890abcdefghijklm"

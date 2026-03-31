@@ -1,0 +1,37 @@
+server:
+  port: 8081
+  servlet:
+    context-path: /product
+
+spring:
+  application:
+    name: Product-service
+
+  security:
+    user:
+      name: hoangluc
+      password: 1234567
+
+  datasource:
+    url: jdbc:mysql://localhost:3307/product_service?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    defer-datasource-initialization: true
+
+  sql:
+    init:
+      mode: always
+
+jwt:
+  signerKey: "_G8QMpPL2NdilojwwGVfLjMfUvkn_6fBMUZ30WYQAtA1234567890abcdefghijklm"
+
+app:
+  identity-service:
+    # Docker: http://identity-service:8080/identity/users
+    url: http://localhost:8080/identity/users

@@ -1,0 +1,197 @@
+version: '3.8'
+
+services:
+  # ========================================
+  # Identity Service & Database
+  # ========================================
+  mysql:
+    image: mysql:8.0
+    container_name: msql-identity
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: identity_service
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - rent-network
+
+  app:
+    build: Indentity-service
+    container_name: identity-app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mysql
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/identity_service?useSSL=false
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      APP_FRONTEND_URL: https://codespheree.id.vn
+    networks:
+      - rent-network
+
+  # ========================================
+  # Product Service & Database
+  # ========================================
+  db-product:
+    image: mysql:8.0
+    container_name: db-product
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: product_service
+    ports:
+      - "3307:3306"
+    networks:
+      - rent-network
+
+  product-service:
+    build: ./Product-service
+    container_name: product-service
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    depends_on:
+      - db-product
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db-product:3306/product_service?createDatabaseIfNotExist=true&useSSL=false
+    networks:
+      - rent-network
+
+  # ========================================
+  # Rental Service & Database
+  # ========================================
+  db-rental:
+    image: mysql:8.0
+    container_name: db-rental
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: rental_service
+    ports:
+      - "3308:3306"
+    networks:
+      - rent-network
+
+  rental-service:
+    build: ./Rental-service
+    container_name: rental-service
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    depends_on:
+      - db-rental
+      - product-service
+      - app
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db-rental:3306/rental_service?createDatabaseIfNotExist=true&useSSL=false
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      APP_PRODUCT_SERVICE_URL: http://product-service:8081/product/items
+      APP_IDENTITY_SERVICE_URL: http://identity-app:8080/identity/users
+    networks:
+      - rent-network
+
+  # ========================================
+  # Review Service & Database
+  # ========================================
+  db-review:
+    image: mysql:8.0
+    container_name: db-review
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: review_service
+    ports:
+      - "3309:3306"
+    networks:
+      - rent-network
+
+  review-service:
+    build: ./Review-service
+    container_name: review-service
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+    depends_on:
+      - db-review
+      - rental-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db-review:3306/review_service?createDatabaseIfNotExist=true&useSSL=false
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      APP_RENTAL_SERVICE_URL: http://rental-service:8082/rental/bookings
+
+
+
+
+
+  # ========================================
+  # Chat Service & Database
+  # ========================================
+  db-chat:
+    image: mysql:8.0
+    container_name: db-chat
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: chat_service
+    ports:
+      - "3310:3306"
+    networks:
+      - rent-network
+    volumes:
+      - chat_data:/var/lib/mysql
+
+  chat-service:
+    build: ./Chat-service
+    container_name: chat-service
+    restart: unless-stopped
+    ports:
+      - "8084:8084"
+    depends_on:
+      - db-chat
+      - app # Identity-service (nếu chat cần verify user)
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db-chat:3306/chat_service?createDatabaseIfNotExist=true&useSSL=false
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+    networks:
+      - rent-network
+
+  # ========================================
+  # API Gateway
+  # ========================================
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    restart: unless-stopped
+    ports:
+      - "8888:8888"
+    depends_on:
+      - app
+      - product-service
+      - rental-service
+      - review-service
+      - chat-service
+    environment:
+      IDENTITY_SERVICE_URL: http://identity-app:8080
+      PRODUCT_SERVICE_URL: http://product-service:8081
+      RENTAL_SERVICE_URL: http://rental-service:8082
+      REVIEW_SERVICE_URL: http://review-service:8083
+      CHAT_SERVICE_URL: http://chat-service:8084
+    networks:
+      - rent-network
+
+volumes:
+  mysql_data:
+  db_review_data:
+  chat_data:
+
+networks:
+  rent-network:
+    driver: bridge

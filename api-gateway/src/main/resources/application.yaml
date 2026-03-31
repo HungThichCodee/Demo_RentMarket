@@ -1,0 +1,60 @@
+server:
+  port: 8888
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      # Bắt buộc: cho phép Spring Cloud Gateway proxy WebSocket Upgrade request
+      # Không có dòng này, Gateway sẽ lọc bỏ Upgrade header → WebSocket không kết nối được
+      websocket:
+        proxyUseDefaultFilters: false
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins: 
+              - "https://codespheree.id.vn"
+              - "http://localhost:5173" 
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - PATCH
+              - OPTIONS
+            allowedHeaders: "*"
+            exposedHeaders: "*"
+            allowCredentials: true
+      routes:
+        - id: identity-service
+          uri: ${IDENTITY_SERVICE_URL:http://localhost:8080}
+          predicates:
+            - Path=/identity/**
+            
+        - id: product-service
+          uri: ${PRODUCT_SERVICE_URL:http://localhost:8081}
+          predicates:
+            - Path=/product/**
+            
+        - id: rental-service
+          uri: ${RENTAL_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/rental/**
+            
+        - id: review-service
+          uri: ${REVIEW_SERVICE_URL:http://localhost:8083}
+          predicates:
+            - Path=/review/**
+            
+        # Route riêng rẽ cho giao thức WebSocket để đảm bảo Gateway dùng WebSocketRoutingFilter
+        - id: chat-service-ws
+          uri: ws://localhost:8084
+          predicates:
+            - Path=/chat/ws/**
+
+        # Route cho REST API của Chat-service
+        - id: chat-service-api
+          uri: ${CHAT_SERVICE_URL:http://localhost:8084}
+          predicates:
+            - Path=/chat/**

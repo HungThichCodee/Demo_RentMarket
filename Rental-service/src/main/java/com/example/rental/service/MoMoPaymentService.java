@@ -42,5 +42,5 @@ public interface MoMoPaymentService {
      */
     boolean verifyReturn(String orderId, int resultCode, String transId,
                          String signature, String amount,
-                         String requestId, String orderInfo);
+                         String requestId, String orderInfo, String extraData);
 }

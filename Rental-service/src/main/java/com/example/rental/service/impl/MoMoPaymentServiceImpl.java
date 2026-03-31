@@ -81,7 +81,7 @@ public class MoMoPaymentServiceImpl implements MoMoPaymentService {
         String amount      = String.valueOf((long) totalToPay);
         String orderInfo   = "Thanh toan don thue #" + booking.getId() + " (Tien thue + Doc coc)";
         
-        return executeMoMoApiRequest(booking.getId(), totalToPay, requestId, orderId, orderInfo, amount, this.returnUrl);
+        return executeMoMoApiRequest(booking.getId(), totalToPay, requestId, orderId, orderInfo, amount, this.returnUrl, "");
     }
 
     // =========================================================
@@ -94,18 +94,20 @@ public class MoMoPaymentServiceImpl implements MoMoPaymentService {
         String currentUser = jwtUtils.getCurrentUsername();
         double totalToPay = request.getAmount();
 
-        String requestId   = partnerCode + "_DEPOSIT_" + currentUser + "_" + System.currentTimeMillis();
-        String orderId     = "DEPOSIT_" + currentUser + "_" + System.currentTimeMillis();
+        String timestampSuffix = String.valueOf(System.currentTimeMillis());
+        String randomSuffix = java.util.UUID.randomUUID().toString().substring(0, 8);
+        String requestId   = partnerCode + "_DEPOSIT_" + timestampSuffix + "_" + randomSuffix;
+        String orderId     = "DEPOSIT_" + timestampSuffix + "_" + randomSuffix;
         String amount      = String.valueOf((long) totalToPay);
-        String orderInfo   = "Nap tien vao vi RentMarket (#" + currentUser + ")";
+        String orderInfo   = "Nap tien vao vi RentMarket";
         
         String callbackUrl = this.returnUrl + "?type=wallet_topup";
+        String extraData = java.util.Base64.getEncoder().encodeToString(currentUser.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         
-        return executeMoMoApiRequest(null, totalToPay, requestId, orderId, orderInfo, amount, callbackUrl);
+        return executeMoMoApiRequest(null, totalToPay, requestId, orderId, orderInfo, amount, callbackUrl, extraData);
     }
 
-    private MoMoPaymentResponse executeMoMoApiRequest(Long bookingId, double totalToPay, String requestId, String orderId, String orderInfo, String amount, String callbackUrl) {
-        String extraData   = "";
+    private MoMoPaymentResponse executeMoMoApiRequest(Long bookingId, double totalToPay, String requestId, String orderId, String orderInfo, String amount, String callbackUrl, String extraData) {
         String requestType = "captureWallet";
 
         String rawSignature = MoMoSignatureUtil.buildRawSignature(
@@ -173,7 +175,8 @@ public class MoMoPaymentServiceImpl implements MoMoPaymentService {
         if (orderId.startsWith("BOOKING_")) {
             processBookingCallback(orderId, rc, transId, amount);
         } else if (orderId.startsWith("DEPOSIT_")) {
-            processDepositCallback(orderId, rc, transId, amount);
+            String extraData = p.getOrDefault("extraData", "");
+            processDepositCallback(orderId, rc, transId, amount, extraData);
         }
     }
 
@@ -181,11 +184,11 @@ public class MoMoPaymentServiceImpl implements MoMoPaymentService {
     @Transactional
     public boolean verifyReturn(String orderId, int resultCode, String transId,
                                 String signature, String amount,
-                                String requestId, String orderInfo) {
+                                String requestId, String orderInfo, String extraData) {
         if (orderId.startsWith("BOOKING_")) {
             return processBookingCallback(orderId, resultCode, transId, amount);
         } else if (orderId.startsWith("DEPOSIT_")) {
-            return processDepositCallback(orderId, resultCode, transId, amount);
+            return processDepositCallback(orderId, resultCode, transId, amount, extraData);
         }
         return false;
     }
@@ -238,10 +241,22 @@ public class MoMoPaymentServiceImpl implements MoMoPaymentService {
     }
 
     // --- Deposit logic ---
-    private boolean processDepositCallback(String orderId, int resultCode, String transId, String amount) {
-        // orderId: DEPOSIT_{userId}_{timestamp}
-        String userId = parseUserIdFromDeposit(orderId);
-        if (userId == null) return false;
+    private boolean processDepositCallback(String orderId, int resultCode, String transId, String amount, String extraData) {
+        String userId = null;
+        if (extraData != null && !extraData.isEmpty()) {
+            try {
+                byte[] decodedBytes = java.util.Base64.getDecoder().decode(extraData);
+                userId = new String(decodedBytes, java.nio.charset.StandardCharsets.UTF_8);
+            } catch (Exception e) {
+                log.error("Failed to decode extraData: {}", extraData);
+            }
+        }
+        // Fallback ngược về orderId nếu không có extraData
+        if (userId == null || userId.isEmpty()) {
+            userId = parseUserIdFromDeposit(orderId);
+        }
+
+        if (userId == null || userId.isEmpty()) return false;
 
         if (resultCode == 0) {
             // Vi IPN va Return co the cung chay, kiem tra trung transId
@@ -251,8 +266,9 @@ public class MoMoPaymentServiceImpl implements MoMoPaymentService {
             
             if (!exists) {
                 double paidAmount = Double.parseDouble(amount);
-                Wallet tenantWallet = walletRepository.findByUserId(userId)
-                    .orElseGet(() -> walletRepository.save(Wallet.builder().userId(userId).availableBalance(0.0).frozenBalance(0.0).build()));
+                final String finalUserId = userId;
+                Wallet tenantWallet = walletRepository.findByUserId(finalUserId)
+                    .orElseGet(() -> walletRepository.save(Wallet.builder().userId(finalUserId).availableBalance(0.0).frozenBalance(0.0).build()));
 
                 tenantWallet.setAvailableBalance(tenantWallet.getAvailableBalance() + paidAmount);
                 walletTransactionRepository.save(WalletTransaction.builder()

@@ -99,7 +99,8 @@ public class PaymentController {
                 params.getOrDefault("signature", ""),
                 params.getOrDefault("amount", ""),
                 params.getOrDefault("requestId", ""),
-                params.getOrDefault("orderInfo", "")
+                params.getOrDefault("orderInfo", ""),
+                params.getOrDefault("extraData", "")
         );
         return ApiResponse.<Map<String, Object>>builder()
                 .result(Map.of("success", success))

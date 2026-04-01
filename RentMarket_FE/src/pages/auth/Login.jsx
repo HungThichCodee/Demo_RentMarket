@@ -96,7 +96,7 @@ const Login = () => {
           <label className="flex flex-col gap-1.5">
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium text-slate-700">Mật khẩu</span>
-              <a href="#" className="text-[#1b64f2] hover:text-blue-700 text-xs font-medium">Quên mật khẩu?</a>
+              <Link to="/forgot-password" className="text-[#1b64f2] hover:text-blue-700 text-xs font-medium">Quên mật khẩu?</Link>
             </div>
             <div className="relative">
               <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">key</span>

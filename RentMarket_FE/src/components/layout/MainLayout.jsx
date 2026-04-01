@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
+import GlobalChatToastRenderer from '../chat/GlobalChatToastRenderer';
 
 const MainLayout = () => (
   <div className="relative flex min-h-screen w-full flex-col bg-[#f8f9fa] text-slate-900">
@@ -9,6 +10,8 @@ const MainLayout = () => (
       <Outlet />
     </main>
     <Footer />
+    {/* Toast thông báo tin nhắn mới — hiểu thị ở mọi trang */}
+    <GlobalChatToastRenderer />
   </div>
 );
 

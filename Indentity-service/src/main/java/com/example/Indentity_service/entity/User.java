@@ -7,6 +7,7 @@ import jakarta.persistence.Id;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.time.LocalDateTime;
 import java.util.Set;
 
 @Data
@@ -28,4 +29,7 @@ public class User {
     String address;
     String avatarUrl;
     Set<String> roles;
+
+    String resetPasswordOtp;
+    LocalDateTime resetPasswordExpiry;
 }

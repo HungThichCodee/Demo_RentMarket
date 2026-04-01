@@ -13,6 +13,7 @@ import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jose.crypto.MACVerifier;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
+import com.example.Indentity_service.dto.request.ResetPasswordRequest;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,9 +26,11 @@ import org.springframework.stereotype.Service;
 
 import java.text.ParseException;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.Date;
+import java.util.Random;
 import java.util.StringJoiner;
 
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +41,7 @@ import lombok.extern.slf4j.Slf4j;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class AuthenticationService {
     UserRepository userRepository;
+    EmailService emailService;
 
     @NonFinal
     @Value("${jwt.signerKey}")
@@ -108,5 +112,43 @@ public class AuthenticationService {
             user.getRoles().forEach(stringJoiner::add);
 
         return stringJoiner.toString();
+    }
+
+    public void forgotPassword(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        // Generate 6-digit OTP
+        String otp = String.format("%06d", new Random().nextInt(999999));
+        
+        // Save OTP and Expiry
+        user.setResetPasswordOtp(otp);
+        user.setResetPasswordExpiry(LocalDateTime.now().plusMinutes(5));
+        userRepository.save(user);
+
+        // Send email
+        emailService.sendResetPasswordEmail(user.getEmail(), otp);
+    }
+
+    public void resetPassword(ResetPasswordRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        if (user.getResetPasswordOtp() == null || !user.getResetPasswordOtp().equals(request.getOtp())) {
+            throw new RuntimeException("Mã xác minh không hợp lệ");
+        }
+
+        if (user.getResetPasswordExpiry().isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("Mã xác minh đã hết hạn");
+        }
+
+        // Update password
+        PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        
+        // Clear OTP
+        user.setResetPasswordOtp(null);
+        user.setResetPasswordExpiry(null);
+        userRepository.save(user);
     }
 }

@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { GlobalChatProvider } from './context/GlobalChatContext';
 
 // Layouts
 import MainLayout from './components/layout/MainLayout';
@@ -12,6 +13,13 @@ import AdminRoute from './components/guards/AdminRoute';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import OAuth2RedirectHandler from './pages/auth/OAuth2RedirectHandler';
+import ForgotPassword from './pages/auth/ForgotPassword';
+
+// Public Public Static info pages
+import About from './pages/public/About';
+import Contact from './pages/public/Contact';
+import Terms from './pages/public/Terms';
+import Privacy from './pages/public/Privacy';
 
 // Product pages
 import Index from './pages/product/Index';
@@ -38,20 +46,32 @@ import AdminOverview from './pages/admin/AdminOverview';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminCategories from './pages/admin/AdminCategories';
 
+// Error Page
+import NotFound from './pages/error/NotFound';
+
 function App() {
   return (
     <Router>
+      <GlobalChatProvider>
       <Routes>
-        {/* Public Routes */}
+        {/* Auth Routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/oauth2/redirect" element={<OAuth2RedirectHandler />} />
 
-        {/* Protected Routes — User (MainLayout + Header) */}
-        <Route element={<ProtectedRoute />}>
-          <Route element={<MainLayout />}>
-            <Route path="/" element={<Index />} />
-            <Route path="/product/:id" element={<ProductDetail />} />
+        {/* User Layout (MainLayout + Header) */}
+        <Route element={<MainLayout />}>
+          {/* Public Routes - Anyone can view */}
+          <Route path="/" element={<Index />} />
+          <Route path="/product/:id" element={<ProductDetail />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
+          
+          {/* Protected Routes - Must be logged in */}
+          <Route element={<ProtectedRoute />}>
             <Route path="/my-items" element={<MyItems />} />
             <Route path="/my-favorites" element={<MyFavorites />} />
             <Route path="/my-rentals" element={<MyRentals />} />
@@ -74,9 +94,10 @@ function App() {
           </Route>
         </Route>
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* Fallback Error Page */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
+      </GlobalChatProvider>
     </Router>
   );
 }

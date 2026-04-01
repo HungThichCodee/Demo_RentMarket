@@ -8,7 +8,6 @@ export const login = async (username, password) => {
     });
     return response.data;
   } catch (error) {
-    // Log đầy đủ response từ Spring Boot để dễ debug
     if (error.response) {
       console.error('[LOGIN] HTTP Status:', error.response.status);
       console.error('[LOGIN] Response Data:', JSON.stringify(error.response.data, null, 2));
@@ -57,7 +56,6 @@ export const register = async (userData) => {
 
 /**
  * Lấy thông tin user đang đăng nhập (từ JWT).
- * Endpoint này accessible cho mọi authenticated user, không cần ADMIN.
  */
 export const getMyInfo = async () => {
   try {
@@ -107,6 +105,9 @@ export const getUserById = async (userId) => {
   }
 };
 
+// removed getUserByUsername due to Vite cache bug
+
+
 export const updateUser = async (userId, userData) => {
   try {
     const response = await api.put(`/identity/users/${userId}`, userData);
@@ -140,3 +141,20 @@ export const uploadAvatar = async (file) => {
   }
 };
 
+export const forgotPassword = async (email) => {
+  try {
+    const response = await api.post('/identity/auth/forgot-password', { email });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Không thể yêu cầu đặt lại mật khẩu');
+  }
+};
+
+export const resetPassword = async (email, otp, newPassword) => {
+  try {
+    const response = await api.post('/identity/auth/reset-password', { email, otp, newPassword });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Lỗi đặt lại mật khẩu');
+  }
+};

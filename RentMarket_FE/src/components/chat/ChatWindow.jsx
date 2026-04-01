@@ -1,26 +1,25 @@
-import { useEffect, useRef, useMemo } from 'react';
+import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import { MessageCircle, Wifi, WifiOff, Loader2 } from 'lucide-react';
 import { getChatHistory } from '../../services/chatService';
+import api from '../../services/api';
+import { getDisplayName } from '../../utils/chatUtils';
 import MessageBubble from './MessageBubble';
 import ChatInput from './ChatInput';
-import { useState } from 'react';
 
 /**
- * Smart container — kết hợp WebSocket real-time + REST history.
+ * ChatWindow — Smart container cho một cuộc hội thoại.
  *
- * WebSocket được quản lý bởi ChatPage (parent), không tạo mới ở đây.
- * Khi người dùng chuyển cuộc trò chuyện, component này re-render với
- * receiverId mới mà KHÔNG ngắt/kết nối lại WebSocket.
+ * Kết hợp lịch sử từ REST API với real-time stream từ GlobalChatContext.
+ * WebSocket KHÔNG được khởi tạo ở đây — chỉ nhận props từ ChatPage.
  *
  * Props:
- *   - currentUser: username của người dùng hiện tại
- *   - receiverId: username người đang chat cùng
- *   - receiverName: tên hiển thị
- *   - messages: mảng tin nhắn real-time từ useChat (ChatPage quản lý)
- *   - isConnected: trạng thái kết nối WebSocket
- *   - onlineUsers: danh sách username đang online
- *   - sendMessage: hàm gửi tin qua WebSocket
- *   - setMessages: dùng để clear tin khi cần (optional)
+ *   currentUser  — username đang đăng nhập
+ *   receiverId   — username người đang chat cùng
+ *   receiverName — tên hiển thị của receiver
+ *   messages     — ChatMessage[] từ STOMP (GlobalChatContext)
+ *   isConnected  — trạng thái WebSocket
+ *   onlineUsers  — Set<string>
+ *   sendMessage  — (receiverId, content) => void
  */
 const ChatWindow = ({
   currentUser,
@@ -31,67 +30,90 @@ const ChatWindow = ({
   onlineUsers,
   sendMessage,
 }) => {
-  const messagesEndRef = useRef(null);
-  const [history, setHistory] = useState([]);
+  const messagesEndRef  = useRef(null);
+  const [history,        setHistory]        = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [fetchedReceiverName, setFetchedReceiverName] = useState('');
 
-  const isReceiverOnline = onlineUsers.includes(receiverId);
+  // onlineUsers là Set<string> → O(1)
+  const isReceiverOnline = onlineUsers.has(receiverId);
 
-  // Load lịch sử chat khi mở cuộc hội thoại mới
+  // ── Auto fetch receiver name nếu bị thiếu họ tên ──────────────────────────
+  useEffect(() => {
+    setFetchedReceiverName('');
+    
+    // Nếu receiverName bằng đúng receiverId (vd: chỉ có mỗi username 'admin')
+    // thì gọi API sang Identity-service để lấy đầy đủ tên.
+    if (receiverId && (!receiverName || receiverName === receiverId)) {
+      api.get(`/identity/users/by-username/${receiverId}`)
+        .then((res) => {
+          if (res.data?.result) {
+            setFetchedReceiverName(getDisplayName(res.data.result));
+          }
+        })
+        .catch(() => { /* im lặng nếu lỗi, fallback về username */ });
+    }
+  }, [receiverId, receiverName]);
+
+  const displayReceiverName = fetchedReceiverName || receiverName || receiverId;
+
+  // ── Load lịch sử khi chuyển conversation ──────────────────────────────
   useEffect(() => {
     if (!currentUser || !receiverId) return;
-
     let cancelled = false;
 
-    const loadHistory = async () => {
-      setHistoryLoading(true);
-      setHistory([]); // xóa history cũ ngay khi chuyển conversation
-      try {
-        const data = await getChatHistory(currentUser, receiverId);
-        if (!cancelled) setHistory(data || []);
-      } catch (err) {
-        console.error('Không thể tải lịch sử chat:', err);
-      } finally {
-        if (!cancelled) setHistoryLoading(false);
-      }
-    };
+    setHistory([]);          // xóa history cũ ngay lập tức
+    setHistoryLoading(true);
 
-    loadHistory();
-    return () => { cancelled = true; }; // chống race condition
+    getChatHistory(currentUser, receiverId)
+      .then((data) => { if (!cancelled) setHistory(data ?? []); })
+      .catch(() => { /* lỗi network — không crash, chỉ để history rỗng */ })
+      .finally(() => { if (!cancelled) setHistoryLoading(false); });
+
+    return () => { cancelled = true; };
   }, [currentUser, receiverId]);
 
-  // Memoize: lọc tin nhắn real-time thuộc cuộc hội thoại hiện tại
+  // ── Lọc tin real-time thuộc conversation này ───────────────────────────
   const realtimeMessages = useMemo(
-    () =>
-      messages.filter(
-        (msg) =>
-          (msg.senderId === currentUser && msg.receiverId === receiverId) ||
-          (msg.senderId === receiverId && msg.receiverId === currentUser)
-      ),
-    [messages, currentUser, receiverId]
+    () => messages.filter(
+      (msg) => {
+        const sId = String(msg.senderId || '').toLowerCase();
+        const rId = String(msg.receiverId || '').toLowerCase();
+        const cId = String(currentUser || '').toLowerCase();
+        const partner = String(receiverId || '').toLowerCase();
+        
+        return (sId === cId && rId === partner) || (sId === partner && rId === cId);
+      }
+    ),
+    [messages, currentUser, receiverId],
   );
 
-  // Memoize: gộp history + real-time, loại bỏ duplicate bằng id
+  // ── Merge history + realtime, dedup bằng id ───────────────────────────
   const allMessages = useMemo(() => {
     const historyIds = new Set(history.map((m) => m.id));
-    const uniqueRealtime = realtimeMessages.filter((m) => !historyIds.has(m.id));
-    return [...history, ...uniqueRealtime];
+    return [...history, ...realtimeMessages.filter((m) => !historyIds.has(m.id))];
   }, [history, realtimeMessages]);
 
-  // Auto-scroll khi có tin nhắn mới
+  // ── Auto-scroll khi có tin mới ─────────────────────────────────────────
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [allMessages.length]);
 
+  // ── Handler gửi tin (useCallback — tránh ChatInput re-render) ──────────
+  const handleSend = useCallback(
+    (content) => sendMessage(receiverId, content),
+    [sendMessage, receiverId],
+  );
+
   return (
     <div className="flex flex-col h-full bg-white overflow-hidden">
-      {/* ═══════════ HEADER ═══════════ */}
+      {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-white flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="relative">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <span className="text-primary font-bold text-sm">
-                {(receiverName || receiverId)?.charAt(0)?.toUpperCase()}
+            <div className="w-10 h-10 rounded-full bg-[#1b64f2]/10 flex items-center justify-center">
+              <span className="text-[#1b64f2] font-bold text-sm">
+                {displayReceiverName?.charAt(0)?.toUpperCase()}
               </span>
             </div>
             <span
@@ -105,7 +127,7 @@ const ChatWindow = ({
 
           <div>
             <h3 className="text-sm font-bold text-slate-900 leading-tight">
-              {receiverName || receiverId}
+              {displayReceiverName}
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">
               {isReceiverOnline ? 'Đang hoạt động' : 'Ngoại tuyến'}
@@ -113,14 +135,12 @@ const ChatWindow = ({
           </div>
         </div>
 
+        {/* Connection status badge */}
         <div
           className={`
             flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium
             transition-all duration-300
-            ${isConnected
-              ? 'bg-emerald-50 text-emerald-600'
-              : 'bg-red-50 text-red-500'
-            }
+            ${isConnected ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}
           `}
         >
           {isConnected ? <Wifi size={13} /> : <WifiOff size={13} />}
@@ -128,37 +148,34 @@ const ChatWindow = ({
         </div>
       </div>
 
-      {/* ═══════════ MESSAGE LIST ═══════════ */}
-      <div className="flex-1 overflow-y-auto px-5 py-4 bg-surface">
+      {/* Message list */}
+      <div className="flex-1 overflow-y-auto px-5 py-4 bg-[#f8f9fa]">
         {historyLoading ? (
           <div className="flex items-center justify-center h-full">
-            <Loader2 size={24} className="animate-spin text-primary/50" />
+            <Loader2 size={24} className="animate-spin text-[#1b64f2]/50" />
           </div>
         ) : allMessages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-3">
-            <div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center">
-              <MessageCircle size={28} className="text-primary/40" />
+            <div className="w-16 h-16 rounded-full bg-[#1b64f2]/5 flex items-center justify-center">
+              <MessageCircle size={28} className="text-[#1b64f2]/40" />
             </div>
             <p className="text-sm font-medium">Chưa có tin nhắn</p>
-            <p className="text-xs text-slate-300">
-              Gửi tin nhắn đầu tiên để bắt đầu cuộc trò chuyện
-            </p>
+            <p className="text-xs text-slate-300">Gửi tin nhắn đầu tiên để bắt đầu</p>
           </div>
         ) : (
           allMessages.map((msg) => (
             <MessageBubble
-              key={msg.id || `${msg.senderId}-${msg.timestamp}`}
+              key={msg.id ?? `${msg.senderId}-${msg.timestamp}`}
               message={msg}
-              isMine={msg.senderId === currentUser}
+              isMine={String(msg.senderId || '').toLowerCase() === String(currentUser || '').toLowerCase()}
             />
           ))
         )}
-
         <div ref={messagesEndRef} />
       </div>
 
-      {/* ═══════════ INPUT ═══════════ */}
-      <ChatInput onSend={(content) => sendMessage(receiverId, content)} disabled={!isConnected} />
+      {/* Input */}
+      <ChatInput onSend={handleSend} disabled={!isConnected} />
     </div>
   );
 };

@@ -381,9 +381,76 @@ const BookingDetail = () => {
         </div>
       </div>
 
+      {/* ── Chat Support Card ── */}
+      <div className="mt-6 bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+        <h2 className="text-sm font-bold text-slate-900 mb-1 flex items-center gap-2">
+          <span className="material-symbols-outlined text-[#1b64f2] text-[18px]">chat</span>
+          Hỗ trợ & Liên hệ
+        </h2>
+        <p className="text-xs text-slate-400 mb-4">Cần hỗ trợ? Nhắn tin trực tiếp qua kênh chat.</p>
+        <div className="flex flex-wrap gap-3">
+          {/* Chat với Admin — luôn hiển thị */}
+          <button
+            id="btn-chat-admin"
+            onClick={() => navigate('/chat?to=admin')}
+            className="
+              inline-flex items-center gap-2 py-2.5 px-5
+              bg-[#1b64f2] hover:bg-[#1554d4] active:bg-[#1347b8]
+              text-white text-sm font-semibold
+              rounded-xl shadow-sm shadow-[#1b64f2]/20
+              transition-all duration-200 cursor-pointer
+              hover:-translate-y-px hover:shadow-md hover:shadow-[#1b64f2]/25
+            "
+          >
+            <span className="material-symbols-outlined text-[17px]">support_agent</span>
+            Chat với Admin
+          </button>
+
+          {/* Chat với Người bán — chỉ hiện cho tenant khi owner khác tenant */}
+          {isTenant && booking.productOwnerId !== currentUsername && (
+            <button
+              id="btn-chat-seller"
+              onClick={() => navigate(`/chat?to=${booking.productOwnerId}`)}
+              className="
+                inline-flex items-center gap-2 py-2.5 px-5
+                bg-white hover:bg-slate-50 active:bg-slate-100
+                text-[#1b64f2] text-sm font-semibold
+                border border-[#1b64f2]/30 hover:border-[#1b64f2]
+                rounded-xl shadow-sm
+                transition-all duration-200 cursor-pointer
+                hover:-translate-y-px hover:shadow-md
+              "
+            >
+              <span className="material-symbols-outlined text-[17px]">storefront</span>
+              Chat với Người bán
+            </button>
+          )}
+
+          {/* Nếu là owner: chat với người thuê */}
+          {isOwner && booking.tenantId !== currentUsername && (
+            <button
+              id="btn-chat-tenant"
+              onClick={() => navigate(`/chat?to=${booking.tenantId}`)}
+              className="
+                inline-flex items-center gap-2 py-2.5 px-5
+                bg-white hover:bg-slate-50 active:bg-slate-100
+                text-[#1b64f2] text-sm font-semibold
+                border border-[#1b64f2]/30 hover:border-[#1b64f2]
+                rounded-xl shadow-sm
+                transition-all duration-200 cursor-pointer
+                hover:-translate-y-px hover:shadow-md
+              "
+            >
+              <span className="material-symbols-outlined text-[17px]">person</span>
+              Chat với Người thuê
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* ── Action footer ── */}
       {!TERMINAL_STATES.includes(booking.status) && booking.status !== BOOKING_STATUS.COMPLETED && (
-        <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end gap-2.5 flex-wrap">
+        <div className="mt-6 pt-6 border-t border-gray-100 flex justify-end gap-2.5 flex-wrap">
           {actionLoading ? (
             <span className="flex items-center gap-2 text-slate-500 text-sm font-medium">
               <span className="animate-spin rounded-full h-4 w-4 border-2 border-slate-100 border-t-[#1b64f2]" />

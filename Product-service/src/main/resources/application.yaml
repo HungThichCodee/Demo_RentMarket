@@ -33,5 +33,4 @@ jwt:
 
 app:
   identity-service:
-    # Docker: http://identity-service:8080/identity/users
-    url: http://localhost:8080/identity/users
+    url: http://localhost:8080/identity/users

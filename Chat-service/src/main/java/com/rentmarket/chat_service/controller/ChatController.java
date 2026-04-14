@@ -15,19 +15,6 @@ import org.springframework.web.bind.annotation.*;
 import java.security.Principal;
 import java.util.List;
 
-/**
- * ChatController — Entry point cho Chat-service.
- *
- * [WebSocket] @MessageMapping("/chat.sendMessage")
- *   Nhận → lưu DB (atomic) → push tới receiver + echo về sender.
- *
- * [REST] GET  /chat/history/{user1}/{user2}    — lịch sử đầy đủ
- * [REST] GET  /chat/conversations/me           — inbox của user hiện tại (dùng Principal)
- * [REST] PATCH /chat/conversations/{p}/read   — đánh dấu đã đọc (trả 204)
- *
- * Tất cả REST endpoint dùng Principal thay PathVariable username
- * để ngăn chặn user đọc inbox của người khác.
- */
 @RestController
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)

@@ -17,17 +17,10 @@ import org.springframework.security.web.SecurityFilterChain;
 
 import javax.crypto.spec.SecretKeySpec;
 
-/**
- * Security configuration for Product-service.
- * Validates JWT tokens using the shared signerKey from Identity-service (HS512).
- * Public endpoints (read-only browsing) are allowed without authentication.
- * All CRUD operations require a valid Bearer token.
- */
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
-    // Endpoints accessible without authentication (browsing/search)
     private static final String[] PUBLIC_GET_ENDPOINTS = {
             "/items",
             "/items/{id}",
@@ -41,15 +34,11 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.authorizeHttpRequests(request -> request
-                // Public read endpoints
                 .requestMatchers(HttpMethod.GET, PUBLIC_GET_ENDPOINTS).permitAll()
-                // Static resources (uploaded images)
                 .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
-                // Everything else requires authentication
                 .anyRequest().authenticated()
         );
 
-        // Configure JWT resource server
         http.oauth2ResourceServer(oauth2 -> oauth2
                 .jwt(jwtConfigurer -> jwtConfigurer
                         .decoder(jwtDecoder())
@@ -57,7 +46,6 @@ public class SecurityConfig {
                 )
         );
 
-        // Disable CSRF (stateless REST API)
         http.csrf(AbstractHttpConfigurer::disable);
 
         return http.build();

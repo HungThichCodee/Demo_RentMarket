@@ -6,8 +6,6 @@ spring:
     name: api-gateway
   cloud:
     gateway:
-      # Bắt buộc: cho phép Spring Cloud Gateway proxy WebSocket Upgrade request
-      # Không có dòng này, Gateway sẽ lọc bỏ Upgrade header → WebSocket không kết nối được
       websocket:
         proxyUseDefaultFilters: false
       globalcors:

@@ -34,9 +34,6 @@ public class PaymentController {
     private final PaymentService paymentService;
     private final MoMoPaymentService moMoPaymentService;
 
-    // =====================================================================
-    // MOCK CARD
-    // =====================================================================
 
     /**
      * @deprecated Không còn sử dụng từ phía Frontend (Phase 2 Payment Streamlining).

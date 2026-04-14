@@ -10,20 +10,9 @@ import org.springframework.data.jpa.domain.Specification;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Builds JPA {@link Specification} instances for dynamic {@link Item} queries
- * based on search criteria provided by the client.
- */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class ItemSpecification {
 
-    /**
-     * Creates a composite specification that filters items by keyword, category,
-     * price range, and status — all optional.
-     *
-     * @param criteria the search filter criteria (nullable fields are skipped)
-     * @return a JPA Specification for use with {@code ItemRepository.findAll()}
-     */
     public static Specification<Item> filterBy(ItemSearchCriteria criteria) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();

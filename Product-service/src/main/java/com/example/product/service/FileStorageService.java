@@ -15,10 +15,6 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 
-/**
- * Handles file storage operations (upload/delete) for item images.
- * Files are stored in a configurable directory on the local filesystem.
- */
 @Slf4j
 @Service
 public class FileStorageService {
@@ -35,13 +31,6 @@ public class FileStorageService {
         }
     }
 
-    /**
-     * Stores a multipart file on disk with a UUID-prefixed filename.
-     *
-     * @param file the uploaded file
-     * @return the generated filename (UUID + original name)
-     * @throws AppException if the file name is invalid or an I/O error occurs
-     */
     public String storeFile(MultipartFile file) {
         String originalFileName = StringUtils.cleanPath(
                 file.getOriginalFilename() != null ? file.getOriginalFilename() : "unknown"
@@ -64,12 +53,6 @@ public class FileStorageService {
         }
     }
 
-    /**
-     * Deletes a file from disk by its filename.
-     *
-     * @param fileName the name of the file to delete
-     * @throws AppException if an I/O error occurs during deletion
-     */
     public void deleteFile(String fileName) {
         try {
             Path targetLocation = this.fileStorageLocation.resolve(fileName).normalize();

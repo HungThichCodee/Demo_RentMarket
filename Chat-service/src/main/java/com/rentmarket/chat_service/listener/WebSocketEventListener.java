@@ -16,14 +16,6 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
 import java.time.LocalDateTime;
 
-/**
- * Listener theo dõi sự kiện kết nối/ngắt kết nối WebSocket.
- *
- * Chống "ghost" online status qua 3 tầng:
- * 1. Spring heartbeat tự phát SessionDisconnectEvent khi mất kết nối
- * 2. PresenceService.removeUser() xóa user khỏi ConcurrentHashMap
- * 3. Broadcast OFFLINE tới /topic/public để UI cập nhật
- */
 @Component
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -42,37 +34,33 @@ public class WebSocketEventListener {
 
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
 
-        // Lưu username vào session attributes để dùng khi DISCONNECT
-        // (SessionDisconnectEvent có thể không có Principal nếu connection đứt giữa chừng)
         if (accessor.getSessionAttributes() != null) {
             accessor.getSessionAttributes().put(SESSION_ATTR_USERNAME, username);
         }
 
         presenceService.addUser(username);
         broadcastPresence(username, "ONLINE");
-        log.info("User '{}' đã KẾT NỐI — Session: {}", username, accessor.getSessionId());
+        log.info("User '{}' connected — Session: {}", username, accessor.getSessionId());
     }
 
     @EventListener
     public void handleSessionDisconnect(SessionDisconnectEvent event) {
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
 
-        // Ưu tiên lấy từ session attributes (đáng tin cậy nhất),
-        // fallback sang Principal nếu không có
         String username = extractUsernameFromSession(accessor);
         if (username == null && event.getUser() != null) {
             username = event.getUser().getName();
         }
 
         if (username == null) {
-            log.warn("Session ngắt kết nối nhưng không xác định được user — Session: {}",
+            log.warn("Session disconnected but user unknown — Session: {}",
                     accessor.getSessionId());
             return;
         }
 
         presenceService.removeUser(username);
         broadcastPresence(username, "OFFLINE");
-        log.info("User '{}' đã NGẮT KẾT NỐI — Session: {}, CloseStatus: {}",
+        log.info("User '{}' disconnected — Session: {}, CloseStatus: {}",
                 username, accessor.getSessionId(), event.getCloseStatus());
     }
 

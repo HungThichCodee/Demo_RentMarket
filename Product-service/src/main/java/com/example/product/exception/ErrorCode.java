@@ -5,11 +5,6 @@ import org.springframework.http.HttpStatusCode;
 
 import lombok.Getter;
 
-/**
- * Centralized error codes for the Product-service.
- * Each code carries a unique numeric identifier, a user-facing message,
- * and the appropriate HTTP status to return.
- */
 @Getter
 public enum ErrorCode {
     INVALID_KEY(1001, "Sai key Enum", HttpStatus.BAD_REQUEST),

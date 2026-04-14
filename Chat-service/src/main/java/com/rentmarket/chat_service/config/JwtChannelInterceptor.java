@@ -21,15 +21,6 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
-/**
- * Interceptor xác thực JWT cho kết nối STOMP WebSocket.
- *
- * Chặn STOMP CONNECT frame để trích xuất và verify JWT token.
- * Sau khi verify thành công, gán Principal vào session để dùng cho mọi frame sau đó.
- *
- * Lý do dùng ChannelInterceptor thay vì HTTP Filter:
- * STOMP truyền JWT trong CONNECT frame header, không phải HTTP header.
- */
 @Component
 @Slf4j
 public class JwtChannelInterceptor implements ChannelInterceptor {
@@ -39,7 +30,6 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
     @Value("${jwt.signerKey}")
     private String signerKey;
 
-    // Cache JWSVerifier — tạo 1 lần khi bean khởi động, không tạo lại mỗi request
     private JWSVerifier verifier;
 
     @PostConstruct
@@ -72,10 +62,6 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
         return message;
     }
 
-    /**
-     * Trích xuất JWT token từ STOMP header "Authorization".
-     * Bỏ prefix "Bearer " và trả về token thuần.
-     */
     private String extractToken(StompHeaderAccessor accessor) {
         String authHeader = accessor.getFirstNativeHeader("Authorization");
 
@@ -87,10 +73,6 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
         return authHeader.substring(BEARER_PREFIX.length());
     }
 
-    /**
-     * Parse, verify chữ ký HS512, và kiểm tra hết hạn của JWT token.
-     * Dùng verifier đã được cache từ @PostConstruct.
-     */
     private JWTClaimsSet validateToken(String token) {
         try {
             SignedJWT signedJWT = SignedJWT.parse(token);
@@ -115,10 +97,6 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
         }
     }
 
-    /**
-     * Tạo Authentication từ JWT claims.
-     * Lấy username từ "sub", roles từ "scope" (format: "ROLE1 ROLE2").
-     */
     private UsernamePasswordAuthenticationToken buildAuthentication(JWTClaimsSet claims) {
         String username = claims.getSubject();
         String scope = (String) claims.getClaim("scope");

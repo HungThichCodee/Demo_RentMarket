@@ -18,18 +18,9 @@ public interface ItemRepository extends JpaRepository<Item, Long>, JpaSpecificat
 
     Page<Item> findByOwnerId(String ownerId, Pageable pageable);
 
-    /**
-     * Fetches an Item with its images and category eagerly loaded
-     * to avoid N+1 queries when building the detail response.
-     */
     @EntityGraph(attributePaths = {"images", "category"})
     Optional<Item> findWithImagesById(Long id);
 
-    /**
-     * Tăng lượt xem cho sản phẩm một cách atomic.
-     * clearAutomatically: xóa first-level cache sau khi update để tránh đọc giá trị cũ.
-     * flushAutomatically: đảm bảo flush trước khi thực thi query.
-     */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE Item i SET i.viewCount = i.viewCount + 1 WHERE i.id = :id")
     void incrementViewCount(@Param("id") Long id);

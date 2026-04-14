@@ -36,11 +36,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.LinkedHashMap;
 
-/**
- * Core service for managing Item lifecycle: CRUD, search, image upload.
- * All write operations require the caller to be authenticated — userId is extracted
- * from the JWT via {@link JwtUtils} rather than accepted from the client.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -59,12 +54,6 @@ public class ItemService {
     @Value("${app.identity-service.url:http://identity-service:8080/identity/users}")
     private String identityServiceUrl;
 
-    // ==================== CRUD ====================
-
-    /**
-     * Creates a new item listing.
-     * ownerId is taken from the authenticated user's JWT — not from the request body.
-     */
     @Transactional
     public ItemResponse createItem(CreateItemRequest request) {
         String ownerId = jwtUtils.getCurrentUserId();
@@ -77,10 +66,6 @@ public class ItemService {
         return itemMapper.toItemResponse(itemRepository.save(item));
     }
 
-    /**
-     * Updates an existing item.
-     * Only the owner (authenticated user from JWT) can update their own item.
-     */
     @Transactional
     public ItemResponse updateItem(Long id, UpdateItemRequest request) {
         String requestingUserId = jwtUtils.getCurrentUserId();
@@ -95,11 +80,6 @@ public class ItemService {
         return itemMapper.toItemResponse(itemRepository.save(item));
     }
 
-    /**
-     * Deletes an item and all its associated images from storage.
-     * Only the owner (authenticated user from JWT) can delete their item.
-     * Blocks deletion if the item is currently rented.
-     */
     @Transactional
     public void deleteItem(Long id) {
         String requestingUserId = jwtUtils.getCurrentUserId();
@@ -119,13 +99,6 @@ public class ItemService {
         itemRepository.delete(item);
     }
 
-    // ==================== QUERIES ====================
-
-    /**
-     * Retrieves a single item with full detail (images, owner info) and increments view count.
-     * Uses {@code @EntityGraph} to eagerly fetch images and avoid N+1 queries.
-     * This is a public endpoint — no authentication required.
-     */
     @Transactional
     public ItemResponse getItemById(Long id) {
         itemRepository.incrementViewCount(id);
@@ -139,9 +112,6 @@ public class ItemService {
         return response;
     }
 
-    /**
-     * Marks an item as RENTED. Requires authentication.
-     */
     @Transactional
     public ItemResponse rentItem(Long id) {
         Item item = findItemById(id);
@@ -152,10 +122,6 @@ public class ItemService {
         return itemMapper.toItemResponse(itemRepository.save(item));
     }
 
-    /**
-     * Releases an item back to AVAILABLE status.
-     * Called by Rental-service when a booking is completed.
-     */
     @Transactional
     public ItemResponse releaseItem(Long id) {
         Item item = findItemById(id);
@@ -163,10 +129,6 @@ public class ItemService {
         return itemMapper.toItemResponse(itemRepository.save(item));
     }
 
-    /**
-     * Searches items with dynamic filters (keyword, category, price, status).
-     * Public endpoint — no authentication required.
-     */
     @Transactional(readOnly = true)
     public PageResponse<ItemResponse> searchItems(ItemSearchCriteria criteria,
                                                    int page, int size,
@@ -176,10 +138,6 @@ public class ItemService {
         return toPageResponse(itemRepository.findAll(spec, pageable));
     }
 
-    /**
-     * Returns all items owned by the authenticated user, paginated and sorted.
-     * ownerId is extracted from the JWT — not from the request.
-     */
     @Transactional(readOnly = true)
     public PageResponse<ItemResponse> getMyItems(int page, int size,
                                                   String sortBy, String sortDir) {
@@ -188,12 +146,6 @@ public class ItemService {
         return toPageResponse(itemRepository.findByOwnerId(ownerId, pageable));
     }
 
-    // ==================== IMAGE UPLOAD ====================
-
-    /**
-     * Uploads an image for an item. Maximum 5 images per item.
-     * Requires authentication — only authenticated users can upload images.
-     */
     @Transactional
     public ItemImageResponse uploadItemImage(Long itemId, MultipartFile file) {
         Item item = findItemById(itemId);
@@ -212,8 +164,6 @@ public class ItemService {
 
         return itemImageMapper.toItemImageResponse(itemImageRepository.save(itemImage));
     }
-
-    // ==================== PRIVATE HELPERS ====================
 
     private Item findItemById(Long id) {
         return itemRepository.findById(id)
@@ -254,10 +204,6 @@ public class ItemService {
                 .build();
     }
 
-    /**
-     * Lấy thông tin chủ đồ từ Identity-service.
-     * Fallback về giá trị mặc định nếu service không phản hồi.
-     */
     private OwnerInfoResponse fetchOwnerInfo(String ownerId) {
         OwnerInfoResponse ownerInfo = OwnerInfoResponse.builder()
                 .id(ownerId)

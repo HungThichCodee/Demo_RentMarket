@@ -11,11 +11,6 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
-/**
- * Global exception handler for the Product-service.
- * Ensures all errors are returned in a consistent {@link ApiResponse} format
- * and no raw stack traces are ever exposed to the client.
- */
 @Slf4j
 @ControllerAdvice
 public class GlobalExceptionHandler {

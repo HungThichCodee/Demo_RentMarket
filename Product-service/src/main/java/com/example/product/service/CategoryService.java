@@ -70,13 +70,13 @@ public class CategoryService {
 
         if (request.getParentId() != null) {
             if (id.equals(request.getParentId())) {
-                throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION); // Tránh trỏ parent vào chính nó
+                throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
             }
             Category parent = categoryRepository.findById(request.getParentId())
                     .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
             category.setParent(parent);
         } else {
-            category.setParent(null); // Cho phép đưa ra gốc
+            category.setParent(null);
         }
 
         return categoryMapper.toCategoryResponse(categoryRepository.save(category));

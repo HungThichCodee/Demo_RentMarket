@@ -17,15 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * ChatService — Business logic layer cho Chat-service.
- *
- * Nguyên tắc Transactional:
- *   - saveMessage(): WRITE — atomic trên 2 bảng (chat_messages + conversations).
- *     Một trong hai fail → rollback cả hai.
- *   - markConversationAsRead(): WRITE — @Modifying query bắt buộc phải có transaction.
- *   - getChatHistory() / getConversations(): READ-ONLY — Hibernate skip dirty checking.
- */
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -34,12 +25,6 @@ public class ChatService {
     ChatMessageRepository  chatMessageRepository;
     ConversationRepository conversationRepository;
 
-    // ─── WRITE ────────────────────────────────────────────────────────────────
-
-    /**
-     * Lưu tin nhắn mới và cập nhật bảng conversations trong 1 transaction.
-     * Server tự gán timestamp + status — không tin client.
-     */
     @Transactional
     public ChatMessageDto saveMessage(ChatMessageDto dto) {
         ChatMessage message = ChatMessage.builder()
@@ -55,15 +40,10 @@ public class ChatService {
         return toMessageDto(saved);
     }
 
-    /**
-     * Reset unread count về 0 khi user mở hội thoại với partner.
-     */
     @Transactional
     public void markConversationAsRead(String me, String partner) {
         conversationRepository.markAsRead(me, partner);
     }
-
-    // ─── READ ─────────────────────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
     public List<ChatMessageDto> getChatHistory(String user1, String user2) {
@@ -81,18 +61,6 @@ public class ChatService {
                 .toList();
     }
 
-    // ─── PRIVATE HELPERS ──────────────────────────────────────────────────────
-
-    /**
-     * UPSERT bảng conversations sau khi lưu tin nhắn.
-     *
-     * Bất biến: userA = min(sender, receiver), userB = max(sender, receiver).
-     * Đảm bảo mỗi cặp user chỉ có ĐÚNG 1 row, bất kể ai gửi trước.
-     *
-     * Unread logic:
-     *   sender = userA → userB nhận → tăng unreadCountB
-     *   sender = userB → userA nhận → tăng unreadCountA
-     */
     private void upsertConversation(ChatMessage msg) {
         String sender   = msg.getSenderId();
         String receiver = msg.getReceiverId();
@@ -125,8 +93,6 @@ public class ChatService {
         try {
             conversationRepository.save(conv);
         } catch (DataIntegrityViolationException e) {
-            // Race condition: transaction khác đã INSERT row này trước.
-            // Thực hiện lại: SELECT row hiện tại + UPDATE.
             conversationRepository.findByUserAAndUserB(userA, userB).ifPresent(existing -> {
                 existing.setLastMessageId(msg.getId());
                 existing.setLastContent(msg.getContent());
